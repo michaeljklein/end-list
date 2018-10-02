@@ -566,3 +566,80 @@ resetEndWithM :: Monad m => EndList e' a -> FoldM m a e -> m (EndList e a)
 resetEndWithM (End _) f = End <$> extractM f
 resetEndWithM ~(x :. xs) f = (x :.) <$> resetEndWithM xs (f `feedM` x)
 
+
+-- | Example application of `EndList`: a list that's
+-- all @b@'s, then all @a@'s, then all @b@'s, ..
+newtype PartList a b = PartList { runPartList :: EndList (Maybe (PartList b a)) b } deriving (Eq, Ord, Show)
+
+-- | Convert a list of `Either`'s to a `Either` `PartList` possibility
+partEither :: [Either a b] -> Either (PartList b a) (PartList a b)
+partEither [] = Right . PartList $ End Nothing
+partEither ~(x:xs) = case x of
+                       Left x' -> Left . PartList $ x' :. loopL xs
+                       Right x' -> Right . PartList $ x' :. loopR xs
+  where
+    loopL [] = End Nothing
+    loopL ~(y:ys) = case y of
+                      Left y' -> y' :. loopL ys
+                      ~(Right y') -> End . Just . PartList $ y' :. loopR ys
+
+    loopR [] = End Nothing
+    loopR ~(y:ys) = case y of
+                      Right y' -> y' :. loopR ys
+                      ~(Left y') -> End . Just . PartList $ y' :. loopL ys
+
+-- | `Left` for even bits and `Right` for odd:
+--
+-- @
+--  λ> enumEither 1265
+--  [Right (),Left (),Left (),Left (),Right (),Right (),Right (),Right (),Left (),Left (),Right ()]--
+-- @
+--
+enumEither :: Integral t => t -> [Either () ()]
+enumEither 0 = [Left ()]
+enumEither 1 = [Right ()]
+enumEither n = case divMod n 2 of
+                 (dv, 0) -> Left () : enumEither dv
+                 ~(dv, _) -> Right () : enumEither dv
+
+-- | Convert an `Integral` input to a list of `Either`s whose values are @[0..]@ and are `Left` or `Right` as in `enumEither`
+--
+-- @
+--  λ> enumEithers 1265
+--  [Right 0,Left 1,Left 2,Left 3,Right 4,Right 5,Right 6,Right 7,Left 8,Left 9,Right 10]
+-- @
+--
+-- @
+--  λ> partEither $ enumEithers 1265
+--  Right
+--    (PartList
+--       { runPartList =
+--           0 :.
+--           End
+--             Just
+--             (PartList
+--                { runPartList =
+--                    1 :. 2 :. 3 :.
+--                    End
+--                      Just
+--                      (PartList
+--                         { runPartList =
+--                             4 :. 5 :. 6 :. 7 :.
+--                             End
+--                               Just
+--                               (PartList
+--                                  { runPartList =
+--                                      8 :. 9 :.
+--                                      End
+--                                        Just
+--                                        (PartList
+--                                           {runPartList = 10 :. End Nothing})
+--                                  })
+--                         })
+--                })
+--       })
+-- @
+--
+enumEithers :: (Enum b, Num b, Integral t) => t -> [Either b b]
+enumEithers x = zipWith (either (const $ Left) (const $ Right)) (enumEither x) [0..]
+
