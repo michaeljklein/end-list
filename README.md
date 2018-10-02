@@ -71,3 +71,7 @@ the next plan is to use Template Haskell to lift methods on lists to methods on
 `EndList`s, or in general, to lift methods on a data-type to methods on that
 data type with empty constructors replaced in a similar way.
 
+# Docs
+
+Haddock generated documentation may be found [here](https://michaeljklein.github.io/end-list/)
+
