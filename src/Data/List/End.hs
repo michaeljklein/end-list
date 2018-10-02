@@ -566,6 +566,23 @@ resetEndWithM :: Monad m => EndList e' a -> FoldM m a e -> m (EndList e a)
 resetEndWithM (End _) f = End <$> extractM f
 resetEndWithM ~(x :. xs) f = (x :.) <$> resetEndWithM xs (f `feedM` x)
 
+-- | `span`, where the prefix that satisfies the predicate is the
+-- non-end part of the `EndList` and the rest of the input is
+-- stored in the `End`.
+--
+-- For example:
+--
+-- @
+--  λ> spanEnd (< 4) [1..6]
+--  1 :. 2 :. 3 :. End [4,5,6]
+-- @
+--
+spanEnd :: (a -> Bool) -> [a] -> EndList [a] a
+spanEnd _ [] = End []
+spanEnd p (x:xs)
+  | p x = x :. spanEnd p xs
+  | otherwise = End (x : xs)
+
 
 -- | Example application of `EndList`: a list that's
 -- all @b@'s, then all @a@'s, then all @b@'s, ..
